@@ -5,28 +5,28 @@ import android.content.DialogInterface
 import android.os.Build
 import android.os.Bundle
 import android.text.format.DateUtils
+import android.util.Log
 import android.view.LayoutInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
+import android.widget.EditText
 import androidx.annotation.RequiresApi
-import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.navigation.NavigationView
 import kotlinx.android.synthetic.main.activity_content.*
-import kotlinx.android.synthetic.main.activity_dashboard.*
+import kotlinx.android.synthetic.main.edit_view.*
 import java.text.SimpleDateFormat
 import java.util.*
 
+
 // ------------------------------------------------------------------------------------------------------------------------
-class DashboardActivity : AppCompatActivity() , NavigationView.OnNavigationItemSelectedListener {
+class DashboardActivity : AppCompatActivity() {
 
     lateinit var dbHandler: DbHandler
     lateinit var toolbar: Toolbar
@@ -46,67 +46,48 @@ class DashboardActivity : AppCompatActivity() , NavigationView.OnNavigationItemS
         // Data Base Handler
 
         dbHandler = DbHandler(this)
+        //dbHandler.onCreate()
 
 
-//   Menu  Section -------------------------------------------------------------------------------------------------------------------------------
+//   Window Section -------------------------------------------------------------------------------------------------------------------------------
 
-        val menu: ImageView = findViewById(R.id.iv_menu)
-        menu.setOnClickListener {
+        val window: ImageView = findViewById(R.id.iv_menu)
 
-            val popup = PopupMenu(this, menu)
-            popup.inflate(R.menu.dashboard_menu)
-            popup.setOnMenuItemClickListener {
+        window.setOnClickListener {
 
-                when (it.itemId) {
+            val popup = PopupWindow(this)
+            val view = layoutInflater.inflate(R.layout.edit_view , null)
+            popup.contentView = view
 
-                    R.id.menu_today -> {
+            val btn_filter =  view.findViewById<Button>(R.id.btn_filter)
+            val dp_filter  = view.findViewById<DatePicker>(R.id.dp_filter)
 
-                        val tasks: MutableList<Task> = dbHandler.getTasks()
-                        val todayTasks = mutableListOf<Task>()
-                        val formatter = SimpleDateFormat("dd-MM-yyyy")
+                    btn_filter.setOnClickListener{
 
-                        tasks.forEach { task ->
-                            val date: Date = formatter.parse(task.time)
-                            if (DateUtils.isToday(date.time)) todayTasks.add(task)
+                        popup.dismiss()
+
+                        val calendar: Calendar = Calendar.getInstance()
+                        calendar.set(dp_filter.year, dp_filter.month, dp_filter.dayOfMonth)
+                        val sdf = SimpleDateFormat("dd-MM-yyyy")
+                        val date_filter = sdf.format(calendar.time)
+
+                        val interventions: MutableList<Intervention> = dbHandler.getInterventions()
+                        val filtered = mutableListOf<Intervention>()
+
+                        interventions.forEach { intervention ->
+
+                            if (intervention.date == date_filter) filtered.add(intervention)
                         }
 
-                        refreshList(todayTasks)
-
+                        refreshList(filtered)
                     }
 
-                    R.id.menu_this_week -> {
+                 Log.e("shwdropw","----------------------------------------------------------")
+                 popup.showAsDropDown(window)
 
-                        val tasks: MutableList<Task> = dbHandler.getTasks()
-                        val this_week_Tasks = mutableListOf<Task>()
-                        val formatter = SimpleDateFormat("dd-MM-yyyy")
-                        val calendar = Calendar.getInstance()
-                        calendar.firstDayOfWeek = Calendar.SATURDAY
-                        val current_year = calendar[Calendar.YEAR]
-                        val current_week_number = calendar[Calendar.WEEK_OF_YEAR]
+               true
 
-                        tasks.forEach { task ->
-
-                            val date: Date = formatter.parse(task.time)
-                            calendar.time = date
-                            val year = calendar[Calendar.YEAR]
-                            val week_number = calendar[Calendar.WEEK_OF_YEAR]
-                            if (current_year == year && current_week_number == week_number) this_week_Tasks.add(
-                                task
-                            )
-
-                        }
-                        refreshList (this_week_Tasks)
                     }
-
-                    R.id.menu_all -> {
-                        refreshList(dbHandler.getTasks())
-                    }
-
-                }
-                true
-            }
-            popup.show()
-        }
 
 
         //----------------------------------------------------------------------------------------------------------------------------------------
@@ -119,23 +100,53 @@ class DashboardActivity : AppCompatActivity() , NavigationView.OnNavigationItemS
         // Listener on the add button to create a pop up dialog ( dialog_dashboard is the view )
 
         fab_dashboard.setOnClickListener {
+
+            val intervention = Intervention()
+
             val dialog = AlertDialog.Builder(this)
             val view = layoutInflater.inflate(R.layout.dialog_dashboard, null)
-            val task_name = view.findViewById<EditText>(R.id.ev_task)
-            val datePicker = view.findViewById<DatePicker>(R.id.dp_task)
             dialog.setView(view)
-            dialog.setPositiveButton("Add") { _: DialogInterface, _: Int ->
-                if (task_name.text.isNotEmpty()) {
-                    val task = Task()
-                    task.name = task_name.text.toString()
 
+            val sp_type = view.findViewById<Spinner>(R.id.type_spinner)
+            val sp_plumer = view.findViewById<Spinner>(R.id.plumer_spinner)
+            val plumers = arrayOf("Smahi","Farah")
+            val types = arrayOf("type1" , "type2" , "type3")
+
+            sp_type.adapter =  ArrayAdapter(dialog.context, R.layout.support_simple_spinner_dropdown_item , types)
+            sp_plumer.adapter = ArrayAdapter(dialog.context, R.layout.support_simple_spinner_dropdown_item,plumers)
+
+            sp_plumer.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+
+                override fun onNothingSelected(parent: AdapterView<*>?) {  intervention.plumer_name = "Farah"  }
+                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long)
+                               { intervention.plumer_name = plumers.get(position)}
+            }
+
+            sp_type.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+
+                override fun onNothingSelected(parent: AdapterView<*>?) {  intervention.type= "type1"  }
+                override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long)
+                { intervention.type = types.get(position)}
+            }
+
+            val number = view.findViewById<EditText>(R.id.ev_number)
+            val datePicker = view.findViewById<DatePicker>(R.id.dp_task)
+
+
+
+            dialog.setPositiveButton("Add") { _: DialogInterface, _: Int ->
+
+                   intervention.number = number.text.toString()
+                    Log.e("adding " , intervention.number)
                     val calendar: Calendar = Calendar.getInstance()
                     calendar.set(datePicker.year, datePicker.month, datePicker.dayOfMonth)
                     val sdf = SimpleDateFormat("dd-MM-yyyy")
-                    task.time = sdf.format(calendar.time)
-                    dbHandler.addTask(task)
-                    refreshList(dbHandler.getTasks())
-                }
+                    intervention.date = sdf.format(calendar.time)
+                    dbHandler.addIntervention(intervention)
+                Log.e("Interventions" , "-----------------------------------------------------------------------------------")
+                    Log.e("Interventions" , dbHandler.getInterventions().toString())
+                    refreshList(dbHandler.getInterventions())
+
             }
             dialog.setNegativeButton("Cancel") { _: DialogInterface, _: Int ->
             }
@@ -143,122 +154,89 @@ class DashboardActivity : AppCompatActivity() , NavigationView.OnNavigationItemS
         }
 
 
- // Navigation Drawer Section ---------------------------------------------------------------------------------------------------------------------
-
-        drawerLayout = findViewById(R.id.drawer_layout)
-        navView = findViewById(R.id.nav_view)
-        val toggle = ActionBarDrawerToggle(
-            this, drawerLayout, toolbar, 0, 0
-        )
-        drawerLayout.addDrawerListener(toggle)
-        toggle.syncState()
-        navView.setNavigationItemSelectedListener(this)
-
-
     }
-
-    override fun onNavigationItemSelected(item: MenuItem ): Boolean {
-        when (item.itemId) {
-            R.id.menu_today -> {
-
-                val tasks: MutableList<Task> = dbHandler.getTasks()
-                val todayTasks = mutableListOf<Task>()
-                val formatter = SimpleDateFormat("dd-MM-yyyy")
-
-                tasks.forEach { task ->
-                    val date: Date = formatter.parse(task.time)
-                    if (DateUtils.isToday(date.time)) todayTasks.add(task)
-                }
-
-                rv_dashboard.adapter = DashboardAdapter(this, todayTasks)
-
-            }
-
-            R.id.menu_this_week -> {
-
-                val tasks: MutableList<Task> = dbHandler.getTasks()
-                val this_week_Tasks = mutableListOf<Task>()
-                val formatter = SimpleDateFormat("dd-MM-yyyy")
-                val calendar = Calendar.getInstance()
-                calendar.firstDayOfWeek = Calendar.SATURDAY
-                val current_year = calendar[Calendar.YEAR]
-                val current_week_number = calendar[Calendar.WEEK_OF_YEAR]
-
-                tasks.forEach { task ->
-
-                    val date: Date = formatter.parse(task.time)
-                    calendar.time = date
-                    val year = calendar[Calendar.YEAR]
-                    val week_number = calendar[Calendar.WEEK_OF_YEAR]
-                    if (current_year == year && current_week_number == week_number) this_week_Tasks.add(
-                        task
-                    )
-
-                }
-                rv_dashboard.adapter = DashboardAdapter(this, this_week_Tasks)
-            }
-
-            R.id.menu_all -> {
-                this.refreshList(dbHandler.getTasks())
-            }
-
-        }
-        drawerLayout.closeDrawer(GravityCompat.START)
-        return true
-    }
-
- //------------------------------------------------------------------------------------------------------------------------------
 
     // function to refresh the list when resuming the app
 
     override fun onResume() {
-        refreshList(dbHandler.getTasks())
+        refreshList(dbHandler.getInterventions())
         super.onResume()
     }
 
     // a function to refresh the list of tasks ( read from the database )
 
-     fun refreshList( tasks: MutableList<Task>){
-        rv_dashboard.adapter = DashboardAdapter(this,tasks)
+     fun refreshList( interventions: MutableList< Intervention>){
+        rv_dashboard.adapter = DashboardAdapter(this,interventions)
     }
 
 
  // Recycler View Section -----------------------------------------------------------------------------------------------------------------
 
-    class DashboardAdapter(val activity: DashboardActivity , val tasks: MutableList<Task>) :
+    class DashboardAdapter(val activity: DashboardActivity , val interventions: MutableList<Intervention>) :
         RecyclerView.Adapter<DashboardAdapter.ViewHolder>() {
         override fun onCreateViewHolder(p0: ViewGroup, p1: Int): ViewHolder {
             return ViewHolder(LayoutInflater.from(activity).inflate(R.layout.rv_child_dashboard, p0, false))
         }
 
         override fun getItemCount(): Int {
-            return tasks.size
+            return interventions.size
         }
 
         override fun onBindViewHolder(holder: ViewHolder, p1: Int) {
 
-            holder.checkBox.text = tasks[p1].name
-            holder.taskTime.text = tasks[p1].time
-            holder.checkBox.isChecked = tasks[p1].isCompleted
-            holder.checkBox.setOnClickListener {
-                tasks[p1].isCompleted = !tasks[p1].isCompleted
-                activity.dbHandler.updateTask(tasks[p1])
+            holder.number.text = interventions[p1].number
+            holder.date.text = interventions[p1].date
+            holder.type.text = interventions[p1].type
+            holder.plumer.text = interventions[p1].plumer_name
 
-            }
+            Log.e("inside binder" ," ----------------------------------------------------" )
+
             holder.deleteBtn.setOnClickListener {
-            activity.dbHandler.deleteTask(tasks[p1])
-                activity.refreshList(activity.dbHandler.getTasks())
+            activity.dbHandler.deleteIntervention(interventions[p1])
+                activity.refreshList(activity.dbHandler.getInterventions())
         }
 
             holder.editBtn.setOnClickListener {
+
                 val dialog = AlertDialog.Builder(activity)
-                val view = activity.layoutInflater.inflate(R.layout.edit_view, null)
+                val view = activity.layoutInflater.inflate(R.layout.dialog_dashboard, null)
                 dialog.setView(view)
-               val editBtn = view.findViewById<EditText>(R.id.editbtn)
+
+                val sp_type = view.findViewById<Spinner>(R.id.type_spinner)
+                val sp_plumer = view.findViewById<Spinner>(R.id.plumer_spinner)
+                val plumers = arrayOf("Smahi","Farah")
+                val types = arrayOf("type1" , "type2" , "type3")
+
+                sp_type.adapter =  ArrayAdapter(dialog.context, R.layout.support_simple_spinner_dropdown_item , types)
+                sp_plumer.adapter = ArrayAdapter(dialog.context, R.layout.support_simple_spinner_dropdown_item,plumers)
+
+                sp_plumer.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+
+                    override fun onNothingSelected(parent: AdapterView<*>?) {  interventions[p1].plumer_name = "Farah"  }
+                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long)
+                    { interventions[p1].plumer_name = plumers.get(position)}
+                }
+
+                sp_type.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+
+                    override fun onNothingSelected(parent: AdapterView<*>?) {  interventions[p1].type= "type1"  }
+                    override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long)
+                    { interventions[p1].type = types.get(position)}
+                }
+
+
+
                 dialog.setPositiveButton("Update") { _: DialogInterface, _: Int ->
-                    tasks[p1].name = editBtn.text.toString()
-                        activity.dbHandler.updateTask(tasks[p1])
-                    activity.refreshList(activity.dbHandler.getTasks())
+                    val number = view.findViewById<EditText>(R.id.ev_number)
+                    val datePicker = view.findViewById<DatePicker>(R.id.dp_task)
+                    interventions[p1].number = number.text.toString()
+                    Log.e("adding " , interventions[p1].number)
+                    val calendar: Calendar = Calendar.getInstance()
+                    calendar.set(datePicker.year, datePicker.month, datePicker.dayOfMonth)
+                    val sdf = SimpleDateFormat("dd-MM-yyyy")
+                    interventions[p1].date = sdf.format(calendar.time)
+                    activity.dbHandler.updateIntervention(p1,interventions[p1])
+                    activity.refreshList(activity.dbHandler.getInterventions())
                     }
                 dialog.setNegativeButton("Cancel") { _: DialogInterface, _: Int ->
                 }
@@ -268,8 +246,10 @@ class DashboardActivity : AppCompatActivity() , NavigationView.OnNavigationItemS
         }
 
         class ViewHolder(v: View) : RecyclerView.ViewHolder(v) {
-            val checkBox : CheckBox = v.findViewById(R.id.cb_task)
-            val taskTime: TextView = v.findViewById(R.id.tv_task_time)
+            val number : TextView = v.findViewById(R.id.number)
+            val plumer : TextView= v.findViewById(R.id.plumer)
+            val type: TextView = v.findViewById(R.id.type)
+            val date: TextView = v.findViewById(R.id.date)
             val deleteBtn : FloatingActionButton = v.findViewById(R.id.rv_delete)
             val editBtn : FloatingActionButton = v.findViewById(R.id.rv_edit)
 

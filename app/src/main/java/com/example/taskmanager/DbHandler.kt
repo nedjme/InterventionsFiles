@@ -1,73 +1,135 @@
 package com.example.taskmanager
 
-import android.content.ContentValues
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
-import android.database.sqlite.SQLiteOpenHelper
-import kotlinx.android.synthetic.main.activity_dashboard.*
+import android.os.Environment
 
-class DbHandler (private val context: Context): SQLiteOpenHelper (context, DB_NAME,null, DB_VERSION ) {
+import android.util.Log
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.io.*
 
-    override fun onCreate(db: SQLiteDatabase?) {
-        val createTasksTable = " CREATE TABLE $TABLE (" +
-                "$COL_ID integer PRIMARY KEY AUTOINCREMENT," +
-                "$COL_TIME datetime DEFAULT CURRENT_TIMESTAMP," +
-                "$COL_NAME varchar,"+
-                "$COL_ISCOMPLETED integer);"
-        db?.execSQL(createTasksTable)
+class DbHandler (private val context: Context)  {
 
-    }
+    val gson = Gson()
 
-    override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) { }
+    fun addIntervention(intervention: Intervention) {
 
-    fun addTask(task: Task): Boolean {
-            val db = writableDatabase
-            val cv = ContentValues()
-            cv.put(COL_NAME, task.name)
-            cv.put(COL_ISCOMPLETED, task.isCompleted)
-            cv.put(COL_TIME, task.time)
-            val result = db.insert(TABLE, null, cv)
+        Log.e("adding intervention" , intervention.toString())
+        val interventions : MutableList<Intervention> = getInterventions()
+        interventions.add(intervention)
+        Log.e("adding intervention" , interventions.toString())
 
-            return result != (-1).toLong()
+        val jsonString = gson.toJson(interventions)
+        Log.e("Json intervention" , jsonString)
+        val file = getFichier("interventions")
+        updateFile(file , jsonString)
+
+
         }
 
 
-    fun updateTask(task: Task) {
-        val db = writableDatabase
-        val cv = ContentValues()
-        cv.put(COL_NAME, task.name)
-        cv.put(COL_ISCOMPLETED,task.isCompleted)
-        cv.put(COL_TIME, task.time)
-        db.update(TABLE ,cv, "$COL_ID=?" , arrayOf(task.id.toString()))
+    fun updateIntervention(index : Int , intervention: Intervention) {
+
+        var interventions = getInterventions()
+
+        interventions[index].number = intervention.number
+        interventions[index].type = intervention.type
+        interventions[index].plumer_name = intervention.plumer_name
+        interventions[index].date = intervention.date
+
+        val jsonString = gson.toJson(interventions)
+        Log.e("Json intervention" , jsonString)
+        val file = getFichier("interventions")
+        updateFile(file , jsonString)
 
     }
 
-    fun deleteTask ( task: Task) {
-            val db = writableDatabase
-            db.delete(TABLE,"$COL_ID=?", arrayOf(task.id.toString()))
+
+    fun deleteIntervention ( intervention: Intervention) {
+
+        val interventions = getInterventions()
+        interventions.remove(intervention)
+        val jsonString = gson.toJson(interventions)
+        Log.e("Json intervention" , jsonString)
+        val file = getFichier("interventions")
+        updateFile(file , jsonString)
 
 
     }
 
-    fun getTasks(): MutableList<Task> {
-        val result: MutableList<Task> = ArrayList()
-        val db = readableDatabase
-        val queryResult = db.rawQuery("SELECT * from $TABLE", null)
-        if (queryResult.moveToFirst()) {
-            do {
-                    val task = Task()
+    fun getInterventions(): MutableList<Intervention> {
 
-                    task.id = queryResult.getLong(queryResult.getColumnIndex(COL_ID))
-                    task.name = queryResult.getString(queryResult.getColumnIndex(COL_NAME))
-                    task.isCompleted = queryResult.getString(queryResult.getColumnIndex(COL_ISCOMPLETED)) == "1"
-                    task.time = queryResult.getString(queryResult.getColumnIndex(COL_TIME))
+        var result =  mutableListOf<Intervention>()
 
-                    result.add(task)
-                } while (queryResult.moveToNext())
-            }
-            queryResult.close()
+
+       val bufferedReader: BufferedReader = getFichier("interventions").bufferedReader()
+        val jsonFileString = bufferedReader.use { it.readText() }
+
+        Log.e("data", jsonFileString)
+
+        val returnType = object : TypeToken<MutableList<Intervention>>() {}.type
+
+        result = gson.fromJson(jsonFileString, returnType)
+
             return result
         }
+
+    // ----------------------------------------------------------------------------------------------------------------
+
+    /*fun convertXmlString2DataObject(xmlString: String, cls: Class<*>): Any {
+        val xmlMapper = XmlMapper()
+        return xmlMapper.readValue(xmlString, cls)
     }
+
+    fun convertXmlFile2DataObject(pathFile: String, cls: Class<*>): Any{
+        val xmlMapper = XmlMapper()
+        return xmlMapper.readValue(File(pathFile), cls)
+    }
+
+    fun write2XMLString(obj: Any): String {
+
+        val xmlMapper = XmlMapper()
+        // use the line of code for pretty-print XML on console. We should remove it in production.
+        xmlMapper.enable(SerializationFeature.INDENT_OUTPUT);
+
+        return xmlMapper.writeValueAsString(obj)
+    }
+
+
+    fun write2XMLFile(obj: Any, pathFile: String) {
+
+        val xmlMapper = XmlMapper()
+        // use the line of code for pretty-print XML on console. We should remove it in production.
+        xmlMapper.enable(SerializationFeature.INDENT_OUTPUT)
+
+        xmlMapper.writeValue(File(pathFile), obj)
+    }
+*/
+
+    fun getFichier(nom: String): File {
+
+        val file = File(Environment.getExternalStorageDirectory().toString() + "/$nom" )
+
+        return file
+    }
+
+
+    fun updateFile (myExternalFile : File , jsonString : String) {
+
+        try {
+            val fileOutPutStream = FileOutputStream(myExternalFile)
+            fileOutPutStream.write(jsonString.toByteArray())
+            fileOutPutStream.close()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+
+        Log.e("adding intervention" , getInterventions().toString())
+
+    }
+
+
+
+}
 
 

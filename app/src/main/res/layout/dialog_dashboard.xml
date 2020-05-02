@@ -6,23 +6,41 @@
     android:gravity = "center">
 
     <EditText
-        android:hint="Task_Name"
+
+        android:hint="Numero"
         android:layout_marginTop="20dp"
         android:layout_marginLeft="40dp"
         android:layout_marginRight="40dp"
         android:layout_marginBottom="10dp"
-        android:id="@+id/ev_task"
+        android:id="@+id/ev_number"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>
+
+    <Spinner
+        android:id="@+id/type_spinner"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/ev_number"
+        android:layout_margin="10dp"/>
+
+    <Spinner
+        android:id="@+id/plumer_spinner"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/type_spinner"
+        android:layout_margin="10dp"
+        />
 
     <DatePicker
 
        android:calendarTextColor="@android:color/white"
-        android:layout_below="@+id/ev_task"
+        android:layout_below="@+id/plumer_spinner"
         android:id="@+id/dp_task"
+        android:layout_margin="20dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:calendarViewShown="false"
+
         />
 
 </RelativeLayout>
